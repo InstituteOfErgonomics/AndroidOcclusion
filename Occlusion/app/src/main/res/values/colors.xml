@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#ff000000</color>    
+    <color name="font">#ffccccff</color>    
+    <color name="fontDrk">#ff999999</color>    
+    <color name="rg">#ffeeffff</color>    
+</resources>

@@ -1,0 +1,225 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/scrollView1"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent">
+        
+<RelativeLayout 
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:paddingLeft="@dimen/activity_horizontal_margin">
+
+    <RadioGroup
+        android:id="@+id/modeRadioGroup"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@color/rg"
+        android:orientation="horizontal"
+        android:layout_below="@+id/rotationRadioGroup"
+        android:layout_alignParentLeft="true">
+
+        <TextView
+            android:id="@+id/textView1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Mode" />
+
+        <RadioButton
+            android:id="@+id/screenRadio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="screen" />
+
+        <RadioButton
+            android:id="@+id/cameraRadio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="camera" />
+    </RadioGroup>
+
+    <EditText
+        android:id="@+id/openmsText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/ipTextView"
+        android:layout_marginTop="50dp"
+        android:layout_toRightOf="@+id/openTextView"
+        android:ems="10"
+        android:inputType="number"
+        android:numeric="integer|decimal" />
+
+    <TextView
+        android:id="@+id/openTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@+id/openmsText"
+        android:layout_alignBottom="@+id/openmsText"
+        android:layout_alignParentLeft="true"
+        android:text="open [ms]" />
+
+    <ImageButton
+        android:id="@+id/aboutButton1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="false"
+        android:layout_alignParentLeft="false"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentTop="true"
+        android:onClick="guiShowAbout"
+        android:src="@drawable/ic_launcher"/>
+
+    <Button
+        android:id="@+id/startButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentTop="true"
+        android:onClick="startOccExperimentManual"
+        android:text="start"
+        android:minWidth="128dp"
+        android:layout_marginTop="16dp">
+
+    	<requestFocus />
+    	</Button>
+
+    <TextView
+        android:id="@+id/textView4"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="To stop occlusion experiment use phone&apos;s volume keys or send telnet command. Service intentionally quits on screen off."
+        android:layout_alignLeft="@id/startButton"
+        android:layout_centerHorizontal="true"
+        android:layout_below="@id/startButton" />
+        <TextView
+        android:id="@+id/ipTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@id/textView4"
+        android:layout_below="@id/textView4"
+        android:text="IP Port" />
+
+    <CheckBox
+        android:id="@+id/tttCheckBox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@+id/openmsText" />
+
+    <TextView
+        android:id="@+id/closeTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@+id/tttCheckBox"
+        android:layout_alignBottom="@+id/tttCheckBox"
+        android:layout_toRightOf="@+id/tttCheckBox"
+        android:text="close [ms]" />
+
+    <EditText
+        android:id="@+id/closemsText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignRight="@+id/openmsText"
+        android:layout_alignTop="@+id/tttCheckBox"
+        android:layout_toRightOf="@+id/closeTextView"
+        android:ems="10"
+        android:inputType="number"
+        android:numeric="integer|decimal" />
+    
+
+
+       <TextView
+           android:id="@+id/textView5"
+           android:layout_width="wrap_content"
+           android:layout_height="wrap_content"
+           android:layout_alignLeft="@+id/tttCheckBox"
+           android:layout_below="@+id/tttCheckBox"
+           android:text="You can disable close interval for TotalTaskTime(unoccluded) trials" />
+
+       
+       <CheckBox
+           android:id="@+id/wakelockCheckBox"
+           android:layout_width="wrap_content"
+           android:layout_height="wrap_content"
+           android:layout_alignLeft="@+id/tttCheckBox"
+           android:layout_below="@id/textView5"
+           android:layout_marginTop="16dip"
+           android:text="Service acquires wakelock \n (no auto screen off)"
+           android:visibility="gone" />
+
+
+    <TextView
+        android:id="@+id/grayText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/textView5"
+        android:layout_below="@+id/textView5"
+        android:text="Occluded Gray"
+        android:paddingRight="16dip"
+        android:layout_marginTop="50dp" />
+
+    <TextView
+        android:id="@+id/grayColorView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_toRightOf="@+id/grayText"
+        android:layout_alignBottom="@+id/grayText"
+        android:minHeight="16dip"
+        android:minWidth="128dip"
+        android:paddingRight="16dip"
+        />
+       
+       <SeekBar
+           android:id="@+id/seekBar1"
+           android:layout_width="fill_parent"
+           android:layout_height="wrap_content"
+           android:layout_alignLeft="@id/grayText"
+           android:layout_alignParentRight="true"
+           android:layout_below="@id/grayText"
+           android:max="255"
+           android:paddingLeft="8dip"
+           android:paddingRight="16dip" />
+
+       <RadioGroup
+           android:id="@+id/rotationRadioGroup"
+           android:layout_width="wrap_content"
+           android:layout_height="wrap_content"
+           android:layout_alignLeft="@id/seekBar1"
+           android:layout_below="@id/seekBar1"
+           android:layout_marginTop="10dp"
+           android:background="@color/rg"
+           android:orientation="horizontal">
+
+           <TextView
+               android:id="@+id/TextView02"
+               android:layout_width="wrap_content"
+               android:layout_height="wrap_content"
+               android:text="Camera rotation" />
+
+           <RadioButton
+               android:id="@+id/RadioButtonRotation0"
+               android:layout_width="wrap_content"
+               android:layout_height="wrap_content"
+               android:checked="true"
+               android:text="0" />
+
+           <RadioButton
+               android:id="@+id/RadioButtonRotation90"
+               android:layout_width="wrap_content"
+               android:layout_height="wrap_content"
+               android:text="90" />
+           <RadioButton
+               android:id="@+id/RadioButtonRotation180"
+               android:layout_width="wrap_content"
+               android:layout_height="wrap_content"
+               android:text="180" />
+          <RadioButton
+               android:id="@+id/RadioButtonRotation270"
+               android:layout_width="wrap_content"
+               android:layout_height="wrap_content"
+               android:text="270" />
+           </RadioGroup>
+
+</RelativeLayout>
+</ScrollView>
