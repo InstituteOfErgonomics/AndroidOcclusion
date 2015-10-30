@@ -370,6 +370,42 @@ public class OccService extends Service implements Camera.PreviewCallback {
                 }
             }
 
+            if ((uri.contains("licence"))) {
+                StringBuilder page = new StringBuilder(10000);//~10KByte
+                page.append("*below the licence for the code part (NanoHttpd) that allowed a quick implementation of the web server: s\n");
+                page.append("*********************************************\n");
+                page.append("*NanoHttpd - Core\n");
+                page.append("*%% \n");
+                page.append("*Copyright(C) 2012 - 2015 nanohttpd \n");
+                page.append("*%% \n");
+                page.append("*Redistribution and use in source and binary forms, with or without modification, \n");
+                page.append("*are permitted provided that the following conditions are met:\n");
+                page.append("*\n");
+                page.append("*1. Redistributions of source code must retain the above copyright notice, this\n");
+                page.append("* list of conditions and the following disclaimer.\n");
+                page.append("*\n");
+                page.append("*2. Redistributions in binary form must reproduce the above copyright notice,\n");
+                page.append("*this list of conditions and the following disclaimer in the documentation\n");
+                page.append("*and / or other materials provided with the distribution.\n");
+                page.append("*\n");
+                page.append("*3. Neither the name of the nanohttpd nor the names of its contributors\n");
+                page.append("*may be used to endorse or promote products derived from this software without\n");
+                page.append("*specific prior written permission.\n");
+                page.append("*\n");
+                page.append("*THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\" AND\n");
+                page.append("*ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED\n");
+                page.append("*WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.\n");
+                page.append("*IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,\n");
+                page.append("*INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,\n");
+                page.append("*BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,\n");
+                page.append("*DATA, OR PROFITS; OR BUSINESS INTERRUPTION)HOWEVER CAUSED AND ON ANY THEORY OF\n");
+                page.append("*LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT(INCLUDING NEGLIGENCE\n");
+                page.append("*OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED\n");
+                page.append("*OF THE POSSIBILITY OF SUCH DAMAGE.\n");
+
+                return NanoHTTPD.newFixedLengthResponse(Response.Status.OK, NanoHTTPD.MIME_PLAINTEXT, page.toString());
+
+            }
 
             //default
 
@@ -397,7 +433,7 @@ public class OccService extends Service implements Camera.PreviewCallback {
 
 
             String page = "<html><head><title>Occlusion Control</title><meta http-equiv=\"refresh\" content=\""+ Integer.toString(REFRESH)+"; URL=" + serverURL + "\"/></head><body>" +
-                    "<a href=\"" + serverURL + "/listing\">file listing</a><hr/><ul>" +
+                    "<a href=\"" + serverURL + "/listing\">file listing</a><br/><a href=\"" + serverURL + "/licence\">NanoHttpd licence</a><hr/><ul>" +
                     "<li><a href=\"" + serverURL + "/control?command=start\">start</a></li>" +
                     "<li><a href=\"" + serverURL + "/control?command=stop\">stop</a></li>" +
                     "<li><a href=\"" + serverURL + "/control?command=toggle\">toggle</a></li>" +

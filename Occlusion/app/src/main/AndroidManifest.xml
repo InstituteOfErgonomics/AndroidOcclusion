@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="de.tum.mw.lfe.occlusion"
-    android:versionCode="201510"
-    android:versionName="1.1" >
+    android:versionCode="201511"
+    android:versionName="1.11" >
 
     <uses-sdk
         android:minSdkVersion="8"
