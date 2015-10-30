@@ -30,6 +30,7 @@ import android.widget.TextView;
 //------------------------------------------------------
 //Version	Date			Author				Mod
 //1			Mar, 2015	Michael Krause		initial
+//1.1	    Oct, 2015	Michael Krause		added web server
 //
 //------------------------------------------------------
 
@@ -246,7 +247,8 @@ public class MainActivity extends Activity {
 
 		//ip
 		TextView ip = (TextView)findViewById(R.id.ipTextView);
-		ip.setText("IP:"+getIpAddress()+" PORT:"+Integer.toString(OccService.PORT));
+		ip.setText("Telnet IP:"+getIpAddress()+" PORT:"+Integer.toString(OccService.TELNET_PORT) + "\n" +
+                   "Webserver IP:"+getIpAddress()+" PORT:"+Integer.toString(OccService.WEB_PORT));
 		
 	}
 
@@ -339,12 +341,15 @@ public class MainActivity extends Activity {
         tempStr += "<br/><br/>More information on <br/><a href=\"http://www.lfe.mw.tum.de/android-occlusion\">http://www.lfe.mw.tum.de/android-occlusion</a>";
         tempStr += "<br/><br/>Data are logged to folder:"+ OccService.FOLDER;
         tempStr += "<br/><br/> Experiment is stopped when volume is changed (e.g., via volume keys). Occlusion service is quit when device screen goes off (e.g., with power button); to stop timing this (power button) is less accurate than volume keys";
-        tempStr += "<br/><br/>You can telnet into IP:"+getIpAddress()+ " PORT:"+Integer.toString(OccService.PORT) + " and use the commands:";
+        tempStr += "<br/><br/>You can use a web browser to connect to IP:"+getIpAddress()+ " PORT:"+Integer.toString(OccService.WEB_PORT) + "";
+        tempStr += "<br/><br/>or you can telnet into IP:"+getIpAddress()+ " PORT:"+Integer.toString(OccService.TELNET_PORT) + " and use text commands:";
+       /*
         tempStr += "<br/>'"+OccService.START_SIGN+"' to start an experiment";
         tempStr += "<br/>'"+OccService.STOP_SIGN+"' to stop an experiment";
         tempStr += "<br/>'"+OccService.EXIT_SIGN+"' to quit occlusion service";
         tempStr += "<br/>'"+OccService.TOGGLE_SIGN+"' to toggle open/close";
         tempStr += "<br/> you can use the numeric keys (1,2,3,...), to mark experimental conditions (marker)";
+        */
         tempStr += "<br/><br/>This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.";
 
 
@@ -364,7 +369,7 @@ public class MainActivity extends Activity {
 	
 	}
 	
-	private String getIpAddress(){
+	public static String getIpAddress(){//helper
 	    try {
 	        for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
 	            NetworkInterface intf = en.nextElement();

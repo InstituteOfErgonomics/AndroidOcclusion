@@ -4,7 +4,9 @@ package de.tum.mw.lfe.occlusion;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Inet4Address;
@@ -12,12 +14,16 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Map;
 import java.util.TimeZone;
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -44,13 +50,7 @@ import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.Toast;
 
-//------------------------------------------------------
-//Revision History 'Occlusion App'
-//------------------------------------------------------
-//Version	Date			Author				Mod
-//1			Mar, 2015	Michael Krause		initial
-//
-//------------------------------------------------------
+import fi.iki.elonen.NanoHTTPD;
 
 /*
 Copyright (C) 2014  Michael Krause (krause@tum.de), Institute of Ergonomics, Technische Universität München
@@ -69,41 +69,40 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-public class OccService extends Service implements Camera.PreviewCallback{
-	private static final String TAG = "LFEocclusion.Service";
-	public Preferences mPrefs;
+public class OccService extends Service implements Camera.PreviewCallback {
+    private static final String TAG = "LFEocclusion.Service";
+    public Preferences mPrefs;
     private static final int WD_ID = 7021;//unique status bar notification ID magic number
     private static final int LAST_RESULT_ID = 7020;//unique status bar notification ID magic number
 
 
-	private View mView;
-	private boolean mStatus = CLOSED;
-	public static final boolean OPEN = true;
-	public static final boolean CLOSED = false;
+    private View mView;
+    private boolean mStatus = OPEN;
+    public static final boolean OPEN = true;
+    public static final boolean CLOSED = false;
 
-	private static boolean mServiceRunning =false;
-	private PowerManager.WakeLock mWakeLock = null;
-	private CameraPreview mCamView;//view for cam preview
-	private SurfaceHolder mHolder;//
-	private Camera mCamera;
-	private static final int TIME_BETWEEN_FRAMES_SIZE = 10;
-	private long[] timeBetweenFrames = new long[TIME_BETWEEN_FRAMES_SIZE];
-	private long mLastPreviewFrameT = SystemClock.elapsedRealtime();
+    private static boolean mServiceRunning = false;
+    private PowerManager.WakeLock mWakeLock = null;
+    private CameraPreview mCamView;//view for cam preview
+    private SurfaceHolder mHolder;//
+    private Camera mCamera;
+    private static final int TIME_BETWEEN_FRAMES_SIZE = 10;
+    private long[] timeBetweenFrames = new long[TIME_BETWEEN_FRAMES_SIZE];
+    private long mLastPreviewFrameT = SystemClock.elapsedRealtime();
 
-	private boolean mIsExperimentRunning=false;
+    private boolean mIsExperimentRunning = false;
 
 
+    //logging
+    private File mFile = null;
+    public static final String CSV_DELIMITER = ";"; //delimiter within csv
+    public static final String CSV_LINE_END = "\r\n"; //line end in csv
+    public static final String FOLDER = "Occlusion"; //folder
+    public static final String FOLDER_DATE_STR = "yyyy-MM-dd";//logging folder format
+    public static final String FILE_EXT = ".txt";
+    public static final String HEADER = "timestamp;action;mode;closeEnabled;open;gray;displayRefreshRate;avgFrameRate;previewSize;rotation;marker;";
 
-	//logging
-	private File mFile=null;
-	public static final String CSV_DELIMITER = ";"; //delimiter within csv
-	public static final String CSV_LINE_END = "\r\n"; //line end in csv
-	public static final String FOLDER = "Occlusion"; //folder
-	public static final String FOLDER_DATE_STR = "yyyy-MM-dd";//logging folder format
-	public static final String FILE_EXT = ".txt";
-	public static final String HEADER ="timestamp;action;mode;closeEnabled;open;gray;displayRefreshRate;avgFrameRate;previewSize;rotation;marker;";
-
-	//action: toggle, prepared, start, stop, open, close
+    //action: toggle, prepared, start, stop, open, close
 
     //instant stats; we calculate and display the results of last experiment directly
     long mTsot;
@@ -111,28 +110,33 @@ public class OccService extends Service implements Camera.PreviewCallback{
     long mStartOfExperimentT = NOT_STARTED;
     long mStopOfExperimentT;
     public static final long NOT_STARTED = -1;
-	//tcp
-	private ServerRunnable mServerRunnable = null;
-	private Thread mServerThread = null;
-	private List<byte[]> mToSend = new ArrayList<byte[]>();
-	public static final int PORT = 7070; // open this port
-	public static final byte[] MARKER = {'0','1','2','3','4','5','6','7','8','9'};
-	public static final char START_SIGN = '#'; // send this sign on port to start
-	public static final char TOGGLE_SIGN = 't'; // send this sign on port to toggle open/close
-	public static final char STOP_SIGN = 'e'; // send this sign on port to get back in prepare mode
-	public static final char EXIT_SIGN = '$'; // send this sign on port to stop
-	private byte mMarker = '-';//marker received via network
-
-	//-------------------------------------------------------------------
+    //tcp
+    private ServerRunnable mServerRunnable = null;
+    private Thread mServerThread = null;
+    private List<byte[]> mToSend = new ArrayList<byte[]>();
+    public static final int TELNET_PORT = 7060; // open this port
+    public static final byte[] MARKER = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
+    public static final char START_SIGN = '#'; // send this sign on port to start
+    public static final char TOGGLE_SIGN = 't'; // send this sign on port to toggle open/close
+    public static final char STOP_SIGN = 'e'; // send this sign on port to get back in prepare mode
+    public static final char EXIT_SIGN = '$'; // send this sign on port to stop
+    private byte mMarker = '-';//marker received via network
 
 
-    private final Handler mHandler = new Handler(){
+    public static final int WEB_PORT = 7070;//provide webserver gui on this port
+    public static final int REFRESH = 2;//refresh every 2s
+    private WebServer mWebserver;
+
+    //-------------------------------------------------------------------
+
+
+    private final Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
             int remoteCommand = msg.what;
 
-            switch(remoteCommand) {
+            switch (remoteCommand) {
                 case STOP_SIGN:
                     experimentStop();
                     break;
@@ -150,10 +154,10 @@ public class OccService extends Service implements Camera.PreviewCallback{
 
             }//switch
 
-            for (int i=0; i < MARKER.length; i++){
-                if (remoteCommand == MARKER[i]){
+            for (int i = 0; i < MARKER.length; i++) {
+                if (remoteCommand == MARKER[i]) {
                     mMarker = MARKER[i];
-                    sendMessageToClient("* marker [i]/decimal/ASCII: ["  +Integer.toString(i) +"]/" + Integer.toString(mMarker) +"/"+ String.valueOf(Character.toChars(mMarker)));
+                    sendMessageToClient("* marker [i]/decimal/ASCII: [" + Integer.toString(i) + "]/" + Integer.toString(mMarker) + "/" + String.valueOf(Character.toChars(mMarker)));
                     break;
                     //Message msg2 = mHandler.obtainMessage();
                     //msg2.what = UPDATE_MARKER_TEXT;
@@ -165,52 +169,56 @@ public class OccService extends Service implements Camera.PreviewCallback{
     };
 
 
-	@Override
-	public int onStartCommand(Intent intent, int flags, int startId) {
-		//handleCommand(intent);
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        //handleCommand(intent);
 
+        if (intent != null) {
             //--------------------------------------------------------------------------------
-            if (intent.getAction().equals("de.tum.mw.lfe.occlusion.START_EXPERIMENT")){
+            if (intent.getAction().equals("de.tum.mw.lfe.occlusion.START_EXPERIMENT")) {
                 //Log.i(TAG, "START_EXPERIMENT intent received");
                 experimentStart();
 
             }
             //--------------------------------------------------------------------------------
-            if (intent.getAction().equals("de.tum.mw.lfe.occlusion.STOP_EXPERIMENT")){
+            if (intent.getAction().equals("de.tum.mw.lfe.occlusion.STOP_EXPERIMENT")) {
                 //Log.i(TAG, "STOP_EXPERIMENT intent received");
                 experimentStop();
 
             }
-           //--------------------------------------------------------------------------------
-			   if (intent.getAction().equals("de.tum.mw.lfe.occlusion.START_SERVICE")){
-				   //Log.i(TAG, "START_SERVICE intent received");
-				   //experiment is later started via TCP commands over network or manually
+            //--------------------------------------------------------------------------------
+            if (intent.getAction().equals("de.tum.mw.lfe.occlusion.START_SERVICE")) {
+                //Log.i(TAG, "START_SERVICE intent received");
+                //experiment is later started via TCP commands over network or manually
 
-                   if (mIsExperimentRunning){ experimentStop();}
+                if (mIsExperimentRunning) {
+                    experimentStop();
+                }
 
-			   }
-        //--------------------------------------------------------------------------------
+            }
+            //--------------------------------------------------------------------------------
+
+        }//!=null
+
+        return START_STICKY;     // We want this service to continue running until it is explicitly  stopped, so return sticky.
+    }
 
 
-		return START_STICKY;	 // We want this service to continue running until it is explicitly  stopped, so return sticky.
-	}
-
-
-	//-------------------------------------------------------------------
+    //-------------------------------------------------------------------
 
     class ServerRunnable implements Runnable {
-    	private CommunicationThread commThread;
-    	private Thread thread;
-    	private ServerSocket mServerSocket;
-    	private Socket mClientSocket;
+        private CommunicationThread commThread;
+        private Thread thread;
+        private ServerSocket mServerSocket;
+        private Socket mClientSocket;
 
-    	public ServerRunnable(){
+        public ServerRunnable() {
             try {
-            	if (mServerSocket == null) mServerSocket = new ServerSocket(PORT);
+                if (mServerSocket == null) mServerSocket = new ServerSocket(TELNET_PORT);
             } catch (Exception e) {
-            	Log.e(TAG,"ServerThread failed on open port: "+ e.getMessage());
+                Log.e(TAG, "ServerThread failed on open port: " + e.getMessage());
             }
-    	}
+        }
 
         public void run() {
 
@@ -222,9 +230,9 @@ public class OccService extends Service implements Camera.PreviewCallback{
                     thread.start();
                     Thread.sleep(100);
                 } catch (Exception e) {
-                	if(!Thread.currentThread().isInterrupted()){//only log error if this was not an intentional interrupt
-                		Log.e(TAG,"ServerThread failed on accept connection: "+ e.getMessage());
-                	}
+                    if (!Thread.currentThread().isInterrupted()) {//only log error if this was not an intentional interrupt
+                        Log.e(TAG, "ServerThread failed on accept connection: " + e.getMessage());
+                    }
                 }
             }//while
 
@@ -233,48 +241,187 @@ public class OccService extends Service implements Camera.PreviewCallback{
         }//run
 
         //helpers
-        public void closeSockets(){
-            try{
+        public void closeSockets() {
+            try {
                 if (mServerSocket != null) mServerSocket.close();
                 if (mClientSocket != null) mClientSocket.close();
-              } catch (Exception e) {
-            	  Log.e(TAG,"ServerThread failed to close sockets: "+ e.getMessage());
-              }
+            } catch (Exception e) {
+                Log.e(TAG, "ServerThread failed to close sockets: " + e.getMessage());
+            }
         }
-
-    	public String ipStatus(){
-    		String tempStr = "";
-    	      if((mServerSocket != null) && (mServerSocket.isBound()) ){
-    		       tempStr += getIpAddress() + ":"+PORT;
-    		      }else{
-    			       tempStr += "-----";
-    		      }
-    	      return tempStr;
-    	}
-
-    	public String getIpAddress(){
-    	    try {
-    	        for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
-    	            NetworkInterface intf = en.nextElement();
-    	            for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
-    	                InetAddress inetAddress = enumIpAddr.nextElement();
-    	                if (!inetAddress.isLoopbackAddress() && inetAddress instanceof Inet4Address) {
-    	                    return inetAddress.getHostAddress().toString();
-    	                }
-    	            }
-    	        }
-    	    } catch (Exception e) {
-    			Log.e(TAG, "getIpAddress() failed: " + e.getMessage());
-    	    }
-    	    return "---";
-    	}
-
 
     }
 
+    //-------------------------------------------------------------------
+    private class WebServer extends NanoHTTPD {
+
+        public WebServer() {
+            super(WEB_PORT);
+        }
+
+        @Override
+        public Response serve(String uri, Method method,
+                              Map<String, String> header, Map<String, String> parameters,
+                              Map<String, String> files) {
+
+            Log.i(TAG, "WebServer():" + uri);
+
+            String serverURL = "http://" + MainActivity.getIpAddress() + ":" + Integer.toString(WEB_PORT);
+
+            if (uri.endsWith("listing")) {
+                File folder = new File(getLoggingFolder());
+                File[] dir1files = folder.listFiles();
+                StringBuilder page = new StringBuilder(10000);//~10KByte
+                page.append("<html><head><title>Occlusion File Listing</title></head><body><a href=\"" + serverURL + "\">&lt;&lt;&lt;Control panel</a><hr/>");
+                page.append("<br/>");
+                page.append(getLoggingFolder());
+                page.append("<br/>");
+                page.append("<ul>");
+                for (File file1 : dir1files) {
+                    if (file1.isDirectory()) {
+                        page.append("<li><b>");
+                        page.append(file1.getName());
+                        page.append("</b></li>");
+                        page.append("<ul>");
+                        File[] dir2files = file1.listFiles();
+                        for (File file2 : dir2files) {
+                            page.append("<li>");
+                            String fname = "";
+                            try {
+                                fname = URLEncoder.encode(file2.getName(), "UTF-8");
+                            } catch (Exception e) {
+                                Log.e(TAG, "URLEncoder failed: " + e.getMessage());
+                                fname = "";
+                            }
+                            page.append("<a href=\"" + serverURL + "/download?filename=" + fname + "\">" + fname + "</a>");
+                            page.append("</li>");
+                        }
+                        page.append("</ul>");
+                    } else {
+                        page.append("<li>");
+                        String fname = "";
+                        try {
+                            fname = URLEncoder.encode(file1.getName(), "UTF-8");
+                        } catch (Exception e) {
+                            Log.e(TAG, "URLEncoder failed: " + e.getMessage());
+                            fname = "";
+                        }
+                        page.append("<a href=\"" + serverURL + "/download?filename=\"" + fname + "\">" + fname + "</a>");
+                        page.append("</li>");
+                    }
+
+                }
+                page.append("</ul>");
+                page.append("</body></html>");
+                return NanoHTTPD.newFixedLengthResponse(Response.Status.OK, NanoHTTPD.MIME_HTML, page.toString());
+            }
+
+
+
+            if ((uri.contains("download"))) {
+                String filename = URLDecoder.decode(parameters.get("filename"));
+
+                File folder = new File(getLoggingFolder());
+                File[] dir1files = folder.listFiles();
+                for (File file1 : dir1files) {
+                    if (file1.isDirectory()) {
+                        File[] dir2files = file1.listFiles();
+                        for (File file2 : dir2files) {
+                            if (file2.getName().equals(filename)) {
+                                try{
+                                    FileInputStream fis = new FileInputStream(file2);
+                                    return newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, fis, file2.length());
+                                } catch (Exception e) {
+                                    Log.e(TAG, "send file failed: " + e.getMessage());
+                                }
+                            }
+                        }
+                    } else {
+                        if (file1.getName().equals(filename)) {
+                         //this should not happen; data files are always stored inside subfolders
+                        }
+                    }
+                }
+
+            }
+
+
+            if (uri.contains("control")) {
+                String command = parameters.get("command");
+                if (command.equals("start")) {
+                    Message msg = mHandler.obtainMessage();
+                    msg.what = START_SIGN;
+                    mHandler.sendMessage(msg);
+                }
+                if (command.equals("stop")) {
+                    Message msg = mHandler.obtainMessage();
+                    msg.what = STOP_SIGN;
+                    mHandler.sendMessage(msg);
+                }
+                if (command.equals("toggle")) {
+                    Message msg = mHandler.obtainMessage();
+                    msg.what = TOGGLE_SIGN;
+                    mHandler.sendMessage(msg);
+                }
+                if (command.equals("marker")) {
+                    Message msg = mHandler.obtainMessage();
+                    msg.what = 48+Integer.parseInt(parameters.get("marker"));//48+x convert 1-9 to ascii code
+                    mHandler.sendMessage(msg);
+                }
+            }
+
+
+            //default
+
+
+            String status0;
+            if (mStatus == OPEN) {
+                status0 = "<br/>Shutter is: open";
+            } else {
+                status0 = "<br/>Shutter is: closed";
+            }
+
+            String status1 = "";
+            if (mIsExperimentRunning) {
+                status1 = "<br/>experiment running<br/>current TTT:" + getFormated(SystemClock.elapsedRealtime() - mStartOfExperimentT) + "s <br/>current TSOT:" + getFormated(mTsot) + "s";
+            } else {
+                status1 = "<br/>no experiment running at the moment";
+            }
+
+            String status2 = "";
+            if (mPrefs != null) {
+                status2 = "<br/>Last result TTT:" + getFormated(mPrefs.getLastTtt()) + "s TSOT:" + getFormated(mPrefs.getLastTsot()) + "s";
+            }
+
+            String marker = "<br/>experimental marker:"+(char)mMarker;
+
+
+            String page = "<html><head><title>Occlusion Control</title><meta http-equiv=\"refresh\" content=\""+ Integer.toString(REFRESH)+"; URL=" + serverURL + "\"/></head><body>" +
+                    "<a href=\"" + serverURL + "/listing\">file listing</a><hr/><ul>" +
+                    "<li><a href=\"" + serverURL + "/control?command=start\">start</a></li>" +
+                    "<li><a href=\"" + serverURL + "/control?command=stop\">stop</a></li>" +
+                    "<li><a href=\"" + serverURL + "/control?command=toggle\">toggle</a></li>" +
+                    "<li>marker: " +
+                    "<a href=\"" + serverURL + "/control?command=marker&marker=0\"> [ 0 ] </a>" +
+                    "<a href=\"" + serverURL + "/control?command=marker&marker=1\"> [ 1 ] </a>" +
+                    "<a href=\"" + serverURL + "/control?command=marker&marker=2\"> [ 2 ] </a>" +
+                    "<a href=\"" + serverURL + "/control?command=marker&marker=3\"> [ 3 ] </a>" +
+                    "<a href=\"" + serverURL + "/control?command=marker&marker=4\"> [ 4 ] </a>" +
+                    "<a href=\"" + serverURL + "/control?command=marker&marker=5\"> [ 5 ] </a>" +
+                    "<a href=\"" + serverURL + "/control?command=marker&marker=6\"> [ 6 ] </a>" +
+                    "<a href=\"" + serverURL + "/control?command=marker&marker=7\"> [ 7 ] </a>" +
+                    "<a href=\"" + serverURL + "/control?command=marker&marker=8\"> [ 8 ] </a>" +
+                    "<a href=\"" + serverURL + "/control?command=marker&marker=9\"> [ 9 ] </a>" +
+                    "</li>" +
+                    "</ul><br/>[updates every "+Integer.toString(REFRESH)+"s]" + status1 + status2 + status0 + marker +"</body></html>";
+
+            return NanoHTTPD.newFixedLengthResponse(Response.Status.OK, NanoHTTPD.MIME_HTML, page);
+
+        }
+    }
 //-------------------------------------------------------------------
 
-	class CommunicationThread implements Runnable {
+	class CommunicationThread implements Runnable {//telnet
 
 		private Socket clientSocket;
 		private BufferedReader input;
@@ -395,9 +542,24 @@ public class OccService extends Service implements Camera.PreviewCallback{
 			mToSend.add(message);//queque this status byte
 			
 		}//sync	
-	}	
-	
-	private void startServer(){
+	}
+
+    private void startWebServer(){
+        mWebserver = new WebServer();
+        try {
+            mWebserver.start();
+        } catch(Exception e) {
+            Log.e(TAG, "Error while web starting:"+e.getMessage());
+        }
+        Log.i(TAG, "Web server started");
+    }
+
+    private void stopWebServer(){
+        if (mWebserver != null) mWebserver.stop();
+    }
+
+
+    private void startTelnetServer(){
 		if (mServerRunnable == null){
 			mServerRunnable	= new ServerRunnable();
 		}
@@ -407,7 +569,7 @@ public class OccService extends Service implements Camera.PreviewCallback{
 		}
 	}
 	
-	private void stopServer(){
+	private void stopTelnetServer(){
         try {
         	mServerThread.interrupt();
         	mServerRunnable.closeSockets();
@@ -421,8 +583,6 @@ public class OccService extends Service implements Camera.PreviewCallback{
         if ((openNewFile) || (mFile == null)) {
             mFile = prepareLogging();//prepare new logging file
         }
-
-        mPrefs = new Preferences(this);
 
         if (mPrefs.getEnableWakelock()) getWakeLock();
 
@@ -509,7 +669,7 @@ public class OccService extends Service implements Camera.PreviewCallback{
 
         noteResult(mTsot);//show last result in notification bar
 
-        sendMessageToClient(getFormatedResult(mTsot));
+        sendMessageToClient("*TSOT: "+getFormated(mTsot)+"s");
 
         openShutter();
 
@@ -562,8 +722,10 @@ public class OccService extends Service implements Camera.PreviewCallback{
 	@Override
 	public void onCreate() {
 
+        mPrefs = new Preferences(this);
 
-		startServer();
+		startTelnetServer();
+        startWebServer();
 
 		mServiceRunning = true;
 
@@ -648,7 +810,8 @@ public class OccService extends Service implements Camera.PreviewCallback{
 		mServiceRunning = false;
 		unregisterReceiver(mReceiver);
 		
-		stopServer();
+		stopTelnetServer();
+        stopWebServer();
 		
 		//android.os.Process.killProcess(android.os.Process.myPid());
 
@@ -802,7 +965,9 @@ public class OccService extends Service implements Camera.PreviewCallback{
     };	
 
     
-    
+    private String getLoggingFolder(){//helper
+        return Environment.getExternalStorageDirectory () + File.separator + FOLDER + File.separator;
+    }
 	
     protected void getWakeLock(){
 	    try{
@@ -847,7 +1012,7 @@ public class OccService extends Service implements Camera.PreviewCallback{
 		String timestamp = Long.toString(Calendar.getInstance(TimeZone.getTimeZone("UTC")).getTimeInMillis());
 	   try{
 		   //try to prepare external logging
-		   String folderStr = Environment.getExternalStorageDirectory () + File.separator + FOLDER + File.separator + folderTimeStr;
+		   String folderStr = getLoggingFolder() + folderTimeStr;
 		   file = new File(folderStr, timestamp + FILE_EXT);
 		   folder = new File(folderStr);
 		   folder.mkdirs();//create missing dirs
@@ -888,15 +1053,15 @@ public class OccService extends Service implements Camera.PreviewCallback{
 	}
 
 
-    private String getFormatedResult(long tsot){
-      return "*TSOT: "+String.format("%.2f", (double)tsot/1000)+ "s";
+    private String getFormated(long t){
+      return String.format("%.2f", (double)t/1000);
     }
 
     private void noteResult(long tsot){
         int icon = R.drawable.ic_launcher;
 
         NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        String result = getFormatedResult(tsot);
+        String result = "*TSOT: "+getFormated(mTsot)+"s";
         Notification notification = new Notification(icon, result, System.currentTimeMillis());
         Context context = getApplicationContext();
         Intent notificationIntent = new Intent(context, de.tum.mw.lfe.occlusion.MainActivity.class);

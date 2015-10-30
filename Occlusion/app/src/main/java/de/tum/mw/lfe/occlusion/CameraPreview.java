@@ -15,14 +15,6 @@ import android.view.SurfaceView;
 import android.view.WindowManager;
 import android.view.WindowManager.LayoutParams;
 
-//------------------------------------------------------
-//Revision History 'Occlusion App'
-//------------------------------------------------------
-//Version	Date			Author				Mod
-//1			Mar, 2015	Michael Krause		initial
-//
-//------------------------------------------------------
-
 /*
 Copyright (C) 2014  Michael Krause (krause@tum.de), Institute of Ergonomics, Technische Universität München
 
